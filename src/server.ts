@@ -280,6 +280,14 @@ export class ApiServer {
         console.log(`Server running on port ${config.port}`);
         console.log(`Environment: ${config.env}`);
         console.log(`Sync enabled: ${config.sync.enabled}`);
+        
+        // Trigger initial sync if enabled
+        if (config.sync.enabled) {
+          console.log('🔄 Starting initial data sync...');
+          this.syncService.triggerManualSync()
+            .then(() => console.log('✅ Initial sync completed successfully'))
+            .catch((error) => console.error('❌ Initial sync failed:', error));
+        }
       });
     } catch (error) {
       console.error('Failed to start server:', error);
