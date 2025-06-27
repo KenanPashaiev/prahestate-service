@@ -45,8 +45,8 @@ export class SyncService {
     try {
       console.log('Starting estate sync...');
       
-      // Fetch all estates from API
-      const estates = await this.apiClient.fetchAllEstates();
+      // Fetch all estates from API with detailed information
+      const estates = await this.apiClient.fetchAllEstatesWithDetails();
       const totalItems = estates.length;
       
       console.log(`Processing ${totalItems} estates...`);

@@ -83,12 +83,120 @@ export class SrealityApiClient {
     }
   }
 
+  async fetchEstateDetails(estateId: number): Promise<any> {
+    try {
+      const response = await this.client.get(`/${estateId}`, {
+        timeout: 15000,
+      });
+      
+      return response.data;
+    } catch (error) {
+      console.error(`Failed to fetch details for estate ${estateId}:`, error);
+      // Return null if details can't be fetched, so we can still process the basic listing
+      return null;
+    }
+  }
+
+  async fetchAllEstatesWithDetails(): Promise<SrealityEstate[]> {
+    const allEstates: SrealityEstate[] = [];
+    let currentPage = 1;
+    let totalPages = 1;
+
+    try {
+      do {
+        console.log(`Fetching page ${currentPage}/${totalPages}...`);
+        
+        const response = await this.fetchEstates(currentPage);
+        
+        if (response._embedded?.estates) {
+          const estatesWithDetails: SrealityEstate[] = [];
+          
+          // Fetch detailed information for each estate
+          for (const estate of response._embedded.estates) {
+            try {
+              console.log(`Fetching details for estate ${estate.hash_id}...`);
+              
+              const details = await this.fetchEstateDetails(estate.hash_id);
+              
+              if (details) {
+                // Merge basic listing data with detailed information
+                const enrichedEstate = {
+                  ...estate,
+                  detailedData: details,
+                  // Merge any additional fields from details
+                  items: details.items || estate.items,
+                  _embedded: {
+                    ...estate._embedded,
+                    ...details._embedded,
+                  }
+                };
+                estatesWithDetails.push(enrichedEstate);
+              } else {
+                // If details fetch fails, use basic listing data
+                estatesWithDetails.push(estate);
+              }
+              
+              // Add delay between detail requests to be respectful
+              await this.delay(500); // 500ms between detail requests
+              
+            } catch (error) {
+              console.error(`Failed to fetch details for estate ${estate.hash_id}, using basic data:`, error);
+              estatesWithDetails.push(estate);
+            }
+          }
+          
+          allEstates.push(...estatesWithDetails);
+        }
+
+        // Better handling of pagination
+        const apiPageCount = response.page_count || 1;
+        const resultSize = response.result_size || allEstates.length;
+        const perPage = response.per_page || config.api.perPage;
+        const currentPageItems = response._embedded?.estates?.length || 0;
+        
+        // Calculate total pages from result size (more reliable than API page_count)
+        const calculatedPages = Math.ceil(resultSize / perPage);
+        
+        // Use calculated pages if API page_count seems wrong
+        totalPages = calculatedPages > 1 ? Math.min(calculatedPages, config.api.maxPages) : Math.min(apiPageCount, config.api.maxPages);
+        
+        console.log(`API Response: result_size=${resultSize}, page_count=${apiPageCount}, per_page=${perPage}, current_page_items=${currentPageItems}, calculated_pages=${calculatedPages}, using_total_pages=${totalPages}`);
+        
+        currentPage++;
+
+        // Add delay between page requests
+        if (currentPage <= totalPages) {
+          await this.delay(config.api.requestDelay);
+        }
+
+      } while (currentPage <= totalPages && allEstates.length < (config.api.maxPages * config.api.perPage));
+
+      console.log(`Fetched ${allEstates.length} estates with details from ${currentPage - 1} pages`);
+      return allEstates;
+
+    } catch (error) {
+      console.error('Failed to fetch all estates with details:', error);
+      throw error;
+    }
+  }
+
   transformEstate(estate: SrealityEstate): EstateData {
     const images: string[] = [];
     
+    // Extract images from _embedded.images first
     if (estate._embedded?.images) {
       estate._embedded.images.forEach(img => {
         if (img._links?.view?.href) {
+          images.push(img._links.view.href);
+        }
+      });
+    }
+
+    // Also check for images in the detailed data if available
+    const detailedData = (estate as any).detailedData;
+    if (detailedData?._embedded?.images) {
+      detailedData._embedded.images.forEach((img: any) => {
+        if (img._links?.view?.href && !images.includes(img._links.view.href)) {
           images.push(img._links.view.href);
         }
       });
@@ -103,6 +211,11 @@ export class SrealityApiClient {
     } else if (estate.price_czk?.value_raw) {
       price = BigInt(estate.price_czk.value_raw);
       priceNote = `${estate.price_czk.name} (${estate.price_czk.unit})`;
+    } else if (detailedData?.price) {
+      price = BigInt(detailedData.price);
+    } else if (detailedData?.price_czk?.value_raw) {
+      price = BigInt(detailedData.price_czk.value_raw);
+      priceNote = `${detailedData.price_czk.name} (${detailedData.price_czk.unit})`;
     }
 
     // Transform amenities from items array and extract specific fields
@@ -117,8 +230,14 @@ export class SrealityApiClient {
     let isFurnished: boolean | undefined;
     let district: string | undefined;
 
-    if (estate.items) {
-      estate.items.forEach(item => {
+    // Process items from both basic and detailed data
+    const allItems = [
+      ...(estate.items || []),
+      ...(detailedData?.items || [])
+    ];
+
+    if (allItems.length > 0) {
+      allItems.forEach(item => {
         amenities[item.name] = {
           value: item.value,
           type: item.type,
