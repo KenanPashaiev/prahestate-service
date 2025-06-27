@@ -25,34 +25,33 @@
 
 ## 🗄️ Database Deployment
 
-### Step 1: Deploy PostgreSQL
-1. **Navigate to:** TrueNAS Web UI → **Apps** → **Custom App**
-2. **Fill in configuration:**
+### Step 1: Deploy PostgreSQL (Using Official App)
+1. **Navigate to:** TrueNAS Web UI → **Apps** → **Discover Apps**
+2. **Search for:** `PostgreSQL`
+3. **Click:** Install on the official PostgreSQL app
+4. **Fill in configuration:**
    ```
-   Application Name: prahestate-db
-   Image Repository: postgres
-   Image Tag: 15-alpine
-   Restart Policy: unless-stopped
+   Application Name: postgresql (or prahestate-postgres)
+   Postgres Database: prahestate
+   Postgres User: postgres
+   Postgres Password: YourSecurePassword123!
+   Postgres Host Auth Method: scram-sha-256
    ```
-3. **Environment Variables:**
+5. **Storage Configuration:**
    ```
-   POSTGRES_DB=prahestate
-   POSTGRES_USER=postgres
-   POSTGRES_PASSWORD=YourSecurePassword123!
-   ```
-4. **Networking:**
-   ```
-   Container Port: 5432
-   Node Port: 30432
-   Protocol: TCP
-   ```
-5. **Storage:**
-   ```
+   Data Storage Type: ixVolume (recommended)
+   Size: 20Gi or more
+   OR
    Host Path: /mnt/[your-pool]/apps/prahestate/postgres-data
-   Mount Path: /var/lib/postgresql/data
    ```
-6. **Click:** Deploy
-7. **Wait for:** Status = Running
+6. **Network Configuration:**
+   ```
+   Host Network: Disabled
+   Service Type: NodePort (optional, for external access)
+   Node Port: 30432 (optional)
+   ```
+7. **Click:** Install
+8. **Wait for:** Status = Running
 
 ## 🚀 Application Deployment
 
@@ -82,13 +81,14 @@
 4. **Environment Variables:**
    ```
    NODE_ENV=production
-   DATABASE_URL=postgresql://postgres:YourSecurePassword123!@[TRUENAS-IP]:30432/prahestate
+   DATABASE_URL=postgresql://postgres:YourSecurePassword123!@postgresql-postgresql:5432/prahestate
    PORT=3000
    SYNC_ENABLED=true
    SYNC_SCHEDULE=0 */6 * * *
    API_REQUEST_DELAY_MS=2000
    SYNC_BATCH_SIZE=50
    ```
+   **Note:** The database host `postgresql-postgresql` is the default service name. You can verify this in TrueNAS → Apps → Installed Apps → PostgreSQL → View Details.
 5. **Networking:**
    ```
    Container Port: 3000

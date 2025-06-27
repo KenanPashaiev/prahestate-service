@@ -83,7 +83,7 @@ Add these environment variables:
 
 ```
 NODE_ENV=production
-DATABASE_URL=postgresql://postgres:your_password@prahestate-db:5432/prahestate
+DATABASE_URL=postgresql://postgres:your_password@postgresql-postgresql:5432/prahestate
 PORT=3000
 SYNC_ENABLED=true
 SYNC_SCHEDULE=0 */6 * * *
@@ -94,39 +94,45 @@ API_PER_PAGE=20
 API_MAX_PAGES=100
 ```
 
+**Note:** The database host `postgresql-postgresql` is the default service name for the official PostgreSQL app. You can verify the exact service name in TrueNAS → Apps → Installed Apps → PostgreSQL → View Details.
+
 #### F. Resource Limits (Optional)
 - **CPU Limit:** `1000m` (1 CPU core)
 - **Memory Limit:** `2Gi`
 - **CPU Request:** `250m`
 - **Memory Request:** `512Mi`
 
-### Step 3: Deploy PostgreSQL Database
+### Step 3: Deploy PostgreSQL Database (Using Official App)
 
-#### A. Create Second Custom App for Database
-1. **Apps → Custom App**
-2. **Application Name:** `prahestate-db`
+#### A. Install PostgreSQL from App Catalog
+1. **Apps → Discover Apps**
+2. **Search for:** `PostgreSQL`
+3. **Click:** Install on the official PostgreSQL app
 
-#### B. Database Configuration
-**Image and Policies:**
-- **Image repository:** `postgres`
-- **Image tag:** `15-alpine`
-- **Restart Policy:** `unless-stopped`
+#### B. PostgreSQL Configuration
+**Application Name:** `postgresql` (or `prahestate-postgres`)
 
-**Environment Variables:**
-```
-POSTGRES_DB=prahestate
-POSTGRES_USER=postgres
-POSTGRES_PASSWORD=your_secure_password_here
-POSTGRES_INITDB_ARGS=--encoding=UTF8 --locale=C
-```
+**PostgreSQL Configuration:**
+- **Postgres Database:** `prahestate`
+- **Postgres User:** `postgres`
+- **Postgres Password:** `your_secure_password_here`
+- **Postgres Host Auth Method:** `scram-sha-256`
 
-**Storage:**
-- **Host Path:** `/mnt/your-pool/apps/prahestate/postgres-data`
-- **Mount Path:** `/var/lib/postgresql/data`
+**Storage Configuration:**
+- **Data Storage:** 
+  - **Type:** ixVolume (recommended) or Host Path
+  - **Size:** 20Gi or more
+  - **Host Path (if using):** `/mnt/your-pool/apps/prahestate/postgres-data`
 
-**Networking:**
-- **Container Port:** `5432`
-- **Node Port:** `30432`
+**Network Configuration:**
+- **Host Network:** Disabled
+- **Service Type:** NodePort
+- **Node Port:** `30432` (or leave default for random port)
+
+**Resource Limits:**
+- **CPU Limit:** 1000m (1 CPU core)
+- **Memory Limit:** 2Gi
+- **Storage:** 20Gi+
 
 ### Step 4: Deploy Database Admin (Optional)
 
@@ -150,17 +156,26 @@ ADMINER_DEFAULT_SERVER=your-truenas-ip:30432
 
 ### Step 5: Initialize Database
 
-1. **SSH into TrueNAS:**
+1. **Find the PostgreSQL service name:**
+   - **TrueNAS UI → Apps → Installed Apps**
+   - **Click on PostgreSQL app → View Details**
+   - **Note the service name** (usually `postgresql-postgresql` or similar)
+
+2. **Update DATABASE_URL if needed:**
+   - If service name is different, update your environment variables
+   - Format: `postgresql://postgres:password@SERVICE-NAME:5432/prahestate`
+
+3. **SSH into TrueNAS:**
    ```bash
    ssh admin@your-truenas-ip
    ```
 
-2. **Find the app container:**
+4. **Find the app container:**
    ```bash
    k3s kubectl get pods -A | grep prahestate
    ```
 
-3. **Initialize database schema:**
+5. **Initialize database schema:**
    ```bash
    k3s kubectl exec -it prahestate-service-xxxxx-xxxxx -- npm run db:push
    ```
@@ -334,9 +349,44 @@ docker-compose -f docker-compose.truenas.yml ps
 docker-compose -f docker-compose.truenas.yml logs app
 ```
 
-## Security Considerations
-- Use **private repositories** for production
-- Set up **SSH keys** for private repos
-- **Rotate database passwords** regularly
-- **Firewall rules** for exposed ports
-- **Regular backups** of data and configuration
+## Finding PostgreSQL Service Information
+
+### Method 1: TrueNAS Web Interface
+1. **Apps → Installed Apps**
+2. **Click on PostgreSQL app**
+3. **View Details** tab shows:
+   - Service names
+   - Internal ports
+   - External access details
+
+### Method 2: Command Line
+```bash
+# SSH to TrueNAS
+ssh admin@your-truenas-ip
+
+# List all services
+k3s kubectl get services -A | grep postgres
+
+# Get service details
+k3s kubectl describe service postgresql-postgresql -n ix-postgresql
+
+# Test connectivity from your app
+k3s kubectl exec -it prahestate-service-xxxxx-xxxxx -- ping postgresql-postgresql
+```
+
+### Common Service Names
+- **Official PostgreSQL app:** `postgresql-postgresql`
+- **Custom app:** `prahestate-db`
+- **With custom name:** `[your-app-name]-postgresql`
+
+### Database URL Examples
+```bash
+# Official PostgreSQL app (default)
+DATABASE_URL=postgresql://postgres:password@postgresql-postgresql:5432/prahestate
+
+# Custom PostgreSQL app
+DATABASE_URL=postgresql://postgres:password@prahestate-db:5432/prahestate
+
+# External access (if NodePort configured)
+DATABASE_URL=postgresql://postgres:password@your-truenas-ip:30432/prahestate
+```

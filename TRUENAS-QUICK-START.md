@@ -19,18 +19,14 @@ git push -u origin main
 ```
 
 ### 3. Deploy Database (First)
-**TrueNAS Web UI → Apps → Custom App**
+**TrueNAS Web UI → Apps → Discover Apps → PostgreSQL**
 
-**App Name:** `prahestate-db`
-- **Image:** `postgres:15-alpine`
-- **Container Port:** `5432` → **Node Port:** `30432`
-- **Environment Variables:**
-  ```
-  POSTGRES_DB=prahestate
-  POSTGRES_USER=postgres
-  POSTGRES_PASSWORD=YourSecurePassword123!
-  ```
-- **Storage:** `/mnt/your-pool/apps/prahestate/postgres-data` → `/var/lib/postgresql/data`
+**App Name:** `postgresql` (or `prahestate-postgres`)
+- **Postgres Database:** `prahestate`
+- **Postgres User:** `postgres`
+- **Postgres Password:** `YourSecurePassword123!`
+- **Storage:** ixVolume (20Gi+) or Host Path `/mnt/your-pool/apps/prahestate/postgres-data`
+- **Network:** NodePort with port `30432` (optional, for external access)
 
 ### 4. Deploy Main App
 **TrueNAS Web UI → Apps → Custom App**
@@ -54,11 +50,13 @@ git push -u origin main
 - **Environment Variables:**
   ```
   NODE_ENV=production
-  DATABASE_URL=postgresql://postgres:YourSecurePassword123!@your-truenas-ip:30432/prahestate
+  DATABASE_URL=postgresql://truenas_admin:YourSecurePassword123!@postgresql-postgresql:5432/prahestate
   PORT=3000
   SYNC_ENABLED=true
   SYNC_SCHEDULE=0 */6 * * *
   ```
+  
+  **Note:** Replace `truenas_admin` with your actual PostgreSQL username and update the password to match what you set in the PostgreSQL app.
 
 ### 5. Initialize Database
 ```bash
