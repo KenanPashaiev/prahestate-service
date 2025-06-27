@@ -57,17 +57,13 @@ export class SrealityApiClient {
         const perPage = response.per_page || config.api.perPage;
         const currentPageItems = response._embedded?.estates?.length || 0;
         
-        // Calculate total pages from result size if page_count is not reliable
+        // Calculate total pages from result size (more reliable than API page_count)
         const calculatedPages = Math.ceil(resultSize / perPage);
-        totalPages = Math.min(apiPageCount || calculatedPages, config.api.maxPages);
         
-        console.log(`API Response: result_size=${resultSize}, page_count=${apiPageCount}, per_page=${perPage}, current_page_items=${currentPageItems}, calculated_pages=${calculatedPages}`);
+        // Use calculated pages if API page_count seems wrong
+        totalPages = calculatedPages > 1 ? Math.min(calculatedPages, config.api.maxPages) : Math.min(apiPageCount, config.api.maxPages);
         
-        // If this page has fewer items than per_page, we've reached the end
-        if (currentPageItems < perPage && currentPageItems > 0) {
-          console.log(`Last page detected: got ${currentPageItems} items, expected ${perPage}`);
-          break;
-        }
+        console.log(`API Response: result_size=${resultSize}, page_count=${apiPageCount}, per_page=${perPage}, current_page_items=${currentPageItems}, calculated_pages=${calculatedPages}, using_total_pages=${totalPages}`);
         
         currentPage++;
 
