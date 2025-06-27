@@ -6,6 +6,23 @@ import { DatabaseService } from './services/database';
 import { SyncService } from './services/sync';
 import config from './config';
 
+// Helper function to convert BigInt values to strings for JSON serialization
+const serializeBigInt = (obj: any): any => {
+  if (obj === null || obj === undefined) return obj;
+  if (typeof obj === 'bigint') return obj.toString();
+  if (Array.isArray(obj)) return obj.map(serializeBigInt);
+  if (typeof obj === 'object') {
+    const serialized: any = {};
+    for (const key in obj) {
+      if (obj.hasOwnProperty(key)) {
+        serialized[key] = serializeBigInt(obj[key]);
+      }
+    }
+    return serialized;
+  }
+  return obj;
+};
+
 interface QueryFilters {
   category?: number;
   type?: number;
@@ -114,7 +131,7 @@ export class ApiServer {
       const result = await this.dbService.getEstates(filters);
       res.json({
         success: true,
-        data: result.estates,
+        data: serializeBigInt(result.estates),
         pagination: {
           page: filters.page || 1,
           limit: filters.limit || 20,
@@ -133,7 +150,7 @@ export class ApiServer {
       const srealityIdBigInt = BigInt(srealityId);
       const estate = await this.dbService.getEstateBySrealityId(srealityIdBigInt);
       if (estate) {
-        res.json({ success: true, data: estate });
+        res.json({ success: true, data: serializeBigInt(estate) });
       } else {
         res.status(404).json({ success: false, error: 'Estate not found' });
       }
@@ -147,7 +164,7 @@ export class ApiServer {
       }
       const estate = await this.dbService.getEstateBySlug(slug);
       if (estate) {
-        res.json({ success: true, data: estate });
+        res.json({ success: true, data: serializeBigInt(estate) });
       } else {
         res.status(404).json({ success: false, error: 'Estate not found' });
       }
@@ -161,7 +178,7 @@ export class ApiServer {
       }
       const estate = await this.dbService.getEstateById(id);
       if (estate) {
-        res.json({ success: true, data: estate });
+        res.json({ success: true, data: serializeBigInt(estate) });
       } else {
         res.status(404).json({ success: false, error: 'Estate not found' });
       }
