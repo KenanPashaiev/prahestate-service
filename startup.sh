@@ -23,6 +23,9 @@ echo "📦 Dependencies installed successfully"
 echo "🔧 Generating Prisma client..."
 npm run db:generate
 
+echo "🗄️ Setting up database schema..."
+npx prisma db push --accept-data-loss
+
 echo "🏗️ Building application..."
 npm run build
 

@@ -63,6 +63,31 @@ export class ApiServer {
       });
     });
 
+    // API Health check (alias)
+    this.app.get('/api/health', (req: Request, res: Response) => {
+      res.json({
+        status: 'ok',
+        timestamp: new Date().toISOString(),
+        service: 'prahestate-service',
+        version: '1.0.0',
+      });
+    });
+
+    // Root route
+    this.app.get('/', (req: Request, res: Response) => {
+      res.json({
+        name: 'PrahEstate Service',
+        version: '1.0.0',
+        description: 'Real estate data service for Prague properties',
+        endpoints: {
+          health: '/health or /api/health',
+          estates: '/api/estates',
+          sync: '/api/sync',
+          stats: '/api/stats',
+        },
+      });
+    });
+
     // --- API Routes ---
 
     // Estates
