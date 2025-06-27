@@ -161,6 +161,8 @@ export class DatabaseService {
     isActive?: boolean;
     page?: number;
     limit?: number;
+    sortBy?: string;
+    sortOrder?: 'asc' | 'desc';
   } = {}): Promise<{ estates: Estate[]; total: number }> {
     const {
       category,
@@ -181,6 +183,8 @@ export class DatabaseService {
       isActive = true,
       page = 1,
       limit = 20,
+      sortBy = 'lastUpdated',
+      sortOrder = 'desc',
     } = filters;
 
     const where: any = { isActive };
@@ -209,10 +213,23 @@ export class DatabaseService {
       if (maxUsableArea !== undefined) where.usableArea.lte = maxUsableArea;
     }
 
+    // Build sorting configuration
+    const orderBy: any = {};
+    const validSortFields = [
+      'price', 'usableArea', 'lastUpdated', 'lastSeen', 'firstSeen', 
+      'createdAt', 'updatedAt', 'name', 'locality', 'district'
+    ];
+    
+    if (validSortFields.includes(sortBy)) {
+      orderBy[sortBy] = sortOrder;
+    } else {
+      orderBy.lastUpdated = 'desc'; // Default fallback
+    }
+
     const [estates, total] = await Promise.all([
       this.prisma.estate.findMany({
         where,
-        orderBy: { lastUpdated: 'desc' },
+        orderBy,
         skip: (page - 1) * limit,
         take: limit,
       }),

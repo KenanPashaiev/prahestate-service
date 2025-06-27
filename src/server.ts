@@ -41,6 +41,8 @@ interface QueryFilters {
   isFurnished?: boolean;
   page?: number;
   limit?: number;
+  sortBy?: string;
+  sortOrder?: 'asc' | 'desc';
 }
 
 // Wrapper for async route handlers to catch errors and pass them to the error handler
@@ -127,6 +129,8 @@ export class ApiServer {
         isFurnished: req.query.isFurnished ? req.query.isFurnished === 'true' : undefined,
         page: req.query.page ? parseInt(req.query.page as string) : 1,
         limit: Math.min(parseInt(req.query.limit as string) || 20, 100),
+        sortBy: req.query.sortBy as string,
+        sortOrder: (req.query.sortOrder as 'asc' | 'desc') || 'desc',
       };
       const result = await this.dbService.getEstates(filters);
       res.json({
