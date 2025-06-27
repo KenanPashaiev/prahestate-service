@@ -99,19 +99,30 @@ export class ApiServer {
           error: 'Failed to fetch estates',
         });
       }
-    });    // Get estate by ID
-    this.app.get('/api/estates/:id', async (req: Request, res: Response): Promise<void> => {
+    });
+
+    // Get estate by Sreality ID (must come before generic :id route)
+    this.app.get('/api/estates/sreality/:srealityId', async (req: Request, res: Response): Promise<void> => {
       try {
-        const { id } = req.params;
-        if (!id) {
+        const { srealityId } = req.params;
+        if (!srealityId) {
           res.status(400).json({
             success: false,
-            error: 'Estate ID is required',
+            error: 'Sreality ID is required',
           });
           return;
         }
 
-        const estate = await this.dbService.getEstateById(id);
+        const srealityIdNum = parseInt(srealityId);
+        if (isNaN(srealityIdNum)) {
+          res.status(400).json({
+            success: false,
+            error: 'Invalid Sreality ID',
+          });
+          return;
+        }
+
+        const estate = await this.dbService.getEstateBySrealityId(srealityIdNum);
 
         if (!estate) {
           res.status(404).json({
@@ -134,28 +145,19 @@ export class ApiServer {
       }
     });
 
-    // Get estate by Sreality ID
-    this.app.get('/api/estates/sreality/:srealityId', async (req: Request, res: Response): Promise<void> => {
+    // Get estate by ID (must come after specific routes)
+    this.app.get('/api/estates/:id', async (req: Request, res: Response): Promise<void> => {
       try {
-        const { srealityId } = req.params;
-        if (!srealityId) {
+        const { id } = req.params;
+        if (!id) {
           res.status(400).json({
             success: false,
-            error: 'Sreality ID is required',
+            error: 'Estate ID is required',
           });
           return;
         }
 
-        const srealityIdNum = parseInt(srealityId);
-        if (isNaN(srealityIdNum)) {
-          res.status(400).json({
-            success: false,
-            error: 'Invalid Sreality ID',
-          });
-          return;
-        }
-
-        const estate = await this.dbService.getEstateBySrealityId(srealityIdNum);
+        const estate = await this.dbService.getEstateById(id);
 
         if (!estate) {
           res.status(404).json({
