@@ -1,0 +1,83 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Estate {
+  id          String   @id @default(cuid())
+  srealityId  Int      @unique @map("sreality_id")
+  name        String
+  category    Int
+  type        Int
+  price       BigInt?
+  priceNote   String?  @map("price_note")
+  locality    String
+  district    String?  // Prague district (e.g., "Praha 1", "Praha 2")
+  description String?
+  gps         Json?
+  images      String[] // Array of image URLs
+  amenities   Json?    // Structured amenities data
+  meta        Json?    // Additional metadata from API
+  
+  // Sreality link
+  srealityUrl String?  @map("sreality_url") // Link to property on Sreality.cz
+  
+  // Property details
+  ownershipType    String?  @map("ownership_type")    // Personal, Cooperative, etc.
+  hasBalcony       Boolean? @map("has_balcony")
+  hasTerrace       Boolean? @map("has_terrace")
+  powerEfficiency  String?  @map("power_efficiency")  // A, B, C, D, E, F, G
+  hasElevator      Boolean? @map("has_elevator")
+  usableArea       Float?   @map("usable_area")       // in square meters
+  hasCellar        Boolean? @map("has_cellar")
+  isFurnished      Boolean? @map("is_furnished")
+  
+  // Tracking fields
+  firstSeen   DateTime @default(now()) @map("first_seen")
+  lastSeen    DateTime @default(now()) @map("last_seen")
+  lastUpdated DateTime @updatedAt @map("last_updated")
+  isActive    Boolean  @default(true) @map("is_active")
+  
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("estates")
+  @@index([category])
+  @@index([type])
+  @@index([locality])
+  @@index([district])
+  @@index([price])
+  @@index([isActive])
+  @@index([lastSeen])
+  @@index([ownershipType])
+  @@index([hasBalcony])
+  @@index([hasTerrace])
+  @@index([powerEfficiency])
+  @@index([hasElevator])
+  @@index([usableArea])
+  @@index([hasCellar])
+  @@index([isFurnished])
+}
+
+model SyncLog {
+  id          String   @id @default(cuid())
+  startedAt   DateTime @default(now()) @map("started_at")
+  completedAt DateTime? @map("completed_at")
+  status      String   // 'running', 'completed', 'failed'
+  totalItems  Int?     @map("total_items")
+  newItems    Int?     @map("new_items")
+  updatedItems Int?    @map("updated_items")
+  deletedItems Int?    @map("deleted_items")
+  errorMessage String? @map("error_message")
+  
+  @@map("sync_logs")
+  @@index([startedAt])
+  @@index([status])
+}

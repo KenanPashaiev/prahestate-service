@@ -1,0 +1,177 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: prahestate
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: prahestate-secrets
+  namespace: prahestate
+type: Opaque
+data:
+  # Base64 encoded: echo -n 'your_password_here' | base64
+  postgres-password: eW91cl9wYXNzd29yZF9oZXJl
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prahestate-config
+  namespace: prahestate
+data:
+  NODE_ENV: "production"
+  PORT: "3000"
+  SYNC_ENABLED: "true"
+  SYNC_SCHEDULE: "0 */6 * * *"
+  API_REQUEST_DELAY_MS: "2000"
+  SYNC_BATCH_SIZE: "50"
+  SREALITY_API_URL: "https://www.sreality.cz/api/en/v2/estates"
+  API_PER_PAGE: "20"
+  API_MAX_PAGES: "100"
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-pvc
+  namespace: prahestate
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+  storageClassName: truenas-ssd  # Adjust based on your TrueNAS storage class
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres
+  namespace: prahestate
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      containers:
+      - name: postgres
+        image: postgres:15-alpine
+        env:
+        - name: POSTGRES_DB
+          value: prahestate
+        - name: POSTGRES_USER
+          value: postgres
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: prahestate-secrets
+              key: postgres-password
+        ports:
+        - containerPort: 5432
+        volumeMounts:
+        - name: postgres-storage
+          mountPath: /var/lib/postgresql/data
+        livenessProbe:
+          exec:
+            command:
+            - pg_isready
+            - -U
+            - postgres
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          exec:
+            command:
+            - pg_isready
+            - -U
+            - postgres
+          initialDelaySeconds: 5
+          periodSeconds: 5
+      volumes:
+      - name: postgres-storage
+        persistentVolumeClaim:
+          claimName: postgres-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-service
+  namespace: prahestate
+spec:
+  selector:
+    app: postgres
+  ports:
+  - port: 5432
+    targetPort: 5432
+  type: ClusterIP
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prahestate-app
+  namespace: prahestate
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: prahestate-app
+  template:
+    metadata:
+      labels:
+        app: prahestate-app
+    spec:
+      containers:
+      - name: prahestate
+        image: prahestate-service:latest  # Build and push your image
+        envFrom:
+        - configMapRef:
+            name: prahestate-config
+        env:
+        - name: DATABASE_URL
+          value: "postgresql://postgres:$(POSTGRES_PASSWORD)@postgres-service:5432/prahestate"
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: prahestate-secrets
+              key: postgres-password
+        ports:
+        - containerPort: 3000
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 3000
+          initialDelaySeconds: 60
+          periodSeconds: 30
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 3000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+      dependsOn:
+      - postgres
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: prahestate-service
+  namespace: prahestate
+spec:
+  selector:
+    app: prahestate-app
+  ports:
+  - port: 3000
+    targetPort: 3000
+    nodePort: 30000  # Accessible via TrueNAS IP:30000
+  type: NodePort
