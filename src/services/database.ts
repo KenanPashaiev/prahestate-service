@@ -1,6 +1,17 @@
 import { PrismaClient, Estate, SyncLog } from '@prisma/client';
 import { EstateData, SyncResult } from '../types';
 
+function slugify(text: string): string {
+  return text
+    .toString()
+    .toLowerCase()
+    .replace(/\s+/g, '-') // Replace spaces with -
+    .replace(/[^\w\-]+/g, '') // Remove all non-word chars
+    .replace(/\-\-+/g, '-') // Replace multiple - with single -
+    .replace(/^-+/, '') // Trim - from start of text
+    .replace(/-+$/, ''); // Trim - from end of text
+}
+
 export class DatabaseService {
   private prisma: PrismaClient;
 
@@ -56,36 +67,40 @@ export class DatabaseService {
     });
 
     const now = new Date();
+    const slug = slugify(`${estateData.name}-${estateData.srealityId}`);
+
+    const data = {
+      slug,
+      name: estateData.name,
+      category: estateData.category,
+      type: estateData.type,
+      price: estateData.price,
+      priceNote: estateData.priceNote,
+      locality: estateData.locality,
+      district: estateData.district,
+      description: estateData.description,
+      gps: estateData.gps,
+      images: estateData.images,
+      amenities: estateData.amenities,
+      meta: estateData.meta,
+      srealityUrl: estateData.srealityUrl,
+      ownershipType: estateData.ownershipType,
+      hasBalcony: estateData.hasBalcony,
+      hasTerrace: estateData.hasTerrace,
+      powerEfficiency: estateData.powerEfficiency,
+      hasElevator: estateData.hasElevator,
+      usableArea: estateData.usableArea,
+      hasCellar: estateData.hasCellar,
+      isFurnished: estateData.isFurnished,
+      lastSeen: now,
+      isActive: true,
+    };
 
     if (existing) {
       // Update existing estate
       const estate = await this.prisma.estate.update({
         where: { srealityId: estateData.srealityId },
-        data: {
-          name: estateData.name,
-          category: estateData.category,
-          type: estateData.type,
-          price: estateData.price,
-          priceNote: estateData.priceNote,
-          locality: estateData.locality,
-          district: estateData.district,
-          description: estateData.description,
-          gps: estateData.gps,
-          images: estateData.images,
-          amenities: estateData.amenities,
-          meta: estateData.meta,
-          srealityUrl: estateData.srealityUrl,
-          ownershipType: estateData.ownershipType,
-          hasBalcony: estateData.hasBalcony,
-          hasTerrace: estateData.hasTerrace,
-          powerEfficiency: estateData.powerEfficiency,
-          hasElevator: estateData.hasElevator,
-          usableArea: estateData.usableArea,
-          hasCellar: estateData.hasCellar,
-          isFurnished: estateData.isFurnished,
-          lastSeen: now,
-          isActive: true,
-        },
+        data,
       });
 
       return { isNew: false, estate: estate as any };
@@ -94,30 +109,8 @@ export class DatabaseService {
       const estate = await this.prisma.estate.create({
         data: {
           srealityId: estateData.srealityId,
-          name: estateData.name,
-          category: estateData.category,
-          type: estateData.type,
-          price: estateData.price,
-          priceNote: estateData.priceNote,
-          locality: estateData.locality,
-          district: estateData.district,
-          description: estateData.description,
-          gps: estateData.gps,
-          images: estateData.images,
-          amenities: estateData.amenities,
-          meta: estateData.meta,
-          srealityUrl: estateData.srealityUrl,
-          ownershipType: estateData.ownershipType,
-          hasBalcony: estateData.hasBalcony,
-          hasTerrace: estateData.hasTerrace,
-          powerEfficiency: estateData.powerEfficiency,
-          hasElevator: estateData.hasElevator,
-          usableArea: estateData.usableArea,
-          hasCellar: estateData.hasCellar,
-          isFurnished: estateData.isFurnished,
+          ...data,
           firstSeen: now,
-          lastSeen: now,
-          isActive: true,
         },
       });
 
@@ -231,6 +224,149 @@ export class DatabaseService {
     return this.prisma.estate.findUnique({
       where: { srealityId },
     }) as any;
+  }
+
+  async getEstateBySlug(slug: string): Promise<Estate | null> {
+    return this.prisma.estate.findUnique({
+      where: { slug },
+    }) as any;
+  }
+
+  async getSyncLogs(page: number = 1, limit: number = 20): Promise<{ logs: SyncLog[]; total: number }> {
+    const [logs, total] = await Promise.all([
+      this.prisma.syncLog.findMany({
+        orderBy: { startedAt: 'desc' },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      this.prisma.syncLog.count(),
+    ]);
+    return { logs, total };
+  }
+
+  async getDistrictStats(): Promise<any> {
+    return this.prisma.estate.groupBy({
+      by: ['district'],
+      _count: {
+        _all: true,
+      },
+      where: {
+        isActive: true,
+        district: {
+          not: undefined,
+        },
+      },
+      orderBy: {
+        _count: {
+          district: 'desc',
+        },
+      },
+    });
+  }
+
+  async getLocalityStats(): Promise<any> {
+    return this.prisma.estate.groupBy({
+      by: ['locality'],
+      _count: {
+        _all: true,
+      },
+      where: {
+        isActive: true,
+        locality: {
+          not: undefined,
+        },
+      },
+      orderBy: {
+        _count: {
+          locality: 'desc',
+        },
+      },
+      take: 50,
+    });
+  }
+
+  async getOwnershipTypeStats(): Promise<any> {
+    return this.prisma.estate.groupBy({
+      by: ['ownershipType'],
+      _count: {
+        _all: true,
+      },
+      where: {
+        isActive: true,
+        ownershipType: {
+          not: undefined,
+        },
+      },
+      orderBy: {
+        _count: {
+          ownershipType: 'desc',
+        },
+      },
+    });
+  }
+
+  async getPriceDistribution(): Promise<any> {
+    return this.prisma.estate.aggregate({
+      _avg: {
+        price: true,
+      },
+      _min: {
+        price: true,
+      },
+      _max: {
+        price: true,
+      },
+      _count: {
+        _all: true,
+      },
+      where: {
+        isActive: true,
+        price: {
+          not: undefined,
+        },
+      },
+    });
+  }
+
+  async getAreaDistribution(): Promise<any> {
+    return this.prisma.estate.aggregate({
+      _avg: {
+        usableArea: true,
+      },
+      _min: {
+        usableArea: true,
+      },
+      _max: {
+        usableArea: true,
+      },
+      _count: {
+        _all: true,
+      },
+      where: {
+        isActive: true,
+        usableArea: {
+          not: undefined,
+        },
+      },
+    });
+  }
+
+  async getSummaryStats(): Promise<any> {
+    const [totalEstates, activeEstates, lastSync] = await Promise.all([
+      this.prisma.estate.count(),
+      this.prisma.estate.count({ where: { isActive: true } }),
+      this.prisma.syncLog.findFirst({
+        where: { status: 'completed' },
+        orderBy: { completedAt: 'desc' },
+      }),
+    ]);
+
+    return {
+      totalEstates,
+      activeEstates,
+      inactiveEstates: totalEstates - activeEstates,
+      lastSyncAt: lastSync?.completedAt || null,
+    };
   }
 
   async getRecentSyncLogs(limit: number = 10): Promise<SyncLog[]> {

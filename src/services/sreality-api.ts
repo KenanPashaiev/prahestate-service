@@ -16,7 +16,7 @@ export class SrealityApiClient {
     });
   }
 
-  async fetchEstates(page: number = 1): Promise<SrealityApiResponse> {
+  async fetchEstates(page: number = 1, params: any = {}): Promise<SrealityApiResponse> {
     try {
       const response: AxiosResponse<SrealityApiResponse> = await this.client.get('', {
         params: {
@@ -25,6 +25,7 @@ export class SrealityApiClient {
           locality_region_id: 10, // Prague
           per_page: config.api.perPage,
           page,
+          ...params,
         },
       });
 

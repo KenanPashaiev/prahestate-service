@@ -121,6 +121,10 @@ export class SyncService {
     return this.performSync();
   }
 
+  async proxySrealityApi(queryParams: any): Promise<any> {
+    return this.apiClient.fetchEstates(queryParams.page || 1, queryParams);
+  }
+
   isCurrentlyRunning(): boolean {
     return this.isRunning;
   }
