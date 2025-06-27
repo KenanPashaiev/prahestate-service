@@ -53,7 +53,7 @@ export class SyncService {
 
       let newItems = 0;
       let updatedItems = 0;
-      const activeSrealityIds: number[] = [];
+      const activeSrealityIds: bigint[] = [];
 
       // Process estates in batches
       for (let i = 0; i < estates.length; i += config.sync.batchSize) {

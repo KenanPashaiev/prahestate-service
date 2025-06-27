@@ -48,7 +48,7 @@ export interface SrealityEstate {
 }
 
 export interface EstateData {
-  srealityId: number;
+  srealityId: bigint;
   name: string;
   category: number;
   type: number;

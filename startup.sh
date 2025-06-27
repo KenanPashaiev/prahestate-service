@@ -24,7 +24,7 @@ echo "🔧 Generating Prisma client..."
 npm run db:generate
 
 echo "🗄️ Setting up database schema..."
-npx prisma db push --accept-data-loss
+npx prisma db push --force-reset --accept-data-loss
 
 echo "🏗️ Building application..."
 npm run build

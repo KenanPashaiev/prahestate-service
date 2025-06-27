@@ -130,12 +130,8 @@ export class ApiServer {
         res.status(400).json({ success: false, error: 'Sreality ID is required' });
         return;
       }
-      const srealityIdNum = parseInt(srealityId);
-      if (isNaN(srealityIdNum)) {
-        res.status(400).json({ success: false, error: 'Invalid Sreality ID' });
-        return;
-      }
-      const estate = await this.dbService.getEstateBySrealityId(srealityIdNum);
+      const srealityIdBigInt = BigInt(srealityId);
+      const estate = await this.dbService.getEstateBySrealityId(srealityIdBigInt);
       if (estate) {
         res.json({ success: true, data: estate });
       } else {

@@ -13,7 +13,7 @@ datasource db {
 model Estate {
   id          String   @id @default(cuid())
   slug        String   @unique
-  srealityId  Int      @unique @map("sreality_id")
+  srealityId  BigInt   @unique @map("sreality_id")
   name        String
   category    Int
   type        Int

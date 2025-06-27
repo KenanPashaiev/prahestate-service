@@ -177,7 +177,7 @@ export class SrealityApiClient {
       : `https://www.sreality.cz/detail/${estate.hash_id}`;
 
     return {
-      srealityId: estate.hash_id,
+      srealityId: BigInt(estate.hash_id),
       name: estate.name,
       category: estate.category,
       type: estate.type,

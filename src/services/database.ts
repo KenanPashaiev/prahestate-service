@@ -118,7 +118,7 @@ export class DatabaseService {
     }
   }
 
-  async markInactiveEstates(activeSrealityIds: number[]): Promise<number> {
+  async markInactiveEstates(activeSrealityIds: bigint[]): Promise<number> {
     const result = await this.prisma.estate.updateMany({
       where: {
         isActive: true,
@@ -220,7 +220,7 @@ export class DatabaseService {
     }) as any;
   }
 
-  async getEstateBySrealityId(srealityId: number): Promise<Estate | null> {
+  async getEstateBySrealityId(srealityId: bigint): Promise<Estate | null> {
     return this.prisma.estate.findUnique({
       where: { srealityId },
     }) as any;
