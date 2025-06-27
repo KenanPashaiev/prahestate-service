@@ -51,7 +51,24 @@ export class SrealityApiClient {
           allEstates.push(...response._embedded.estates);
         }
 
-        totalPages = Math.min(response.page_count, config.api.maxPages);
+        // Better handling of pagination
+        const apiPageCount = response.page_count || 1;
+        const resultSize = response.result_size || allEstates.length;
+        const perPage = response.per_page || config.api.perPage;
+        const currentPageItems = response._embedded?.estates?.length || 0;
+        
+        // Calculate total pages from result size if page_count is not reliable
+        const calculatedPages = Math.ceil(resultSize / perPage);
+        totalPages = Math.min(apiPageCount || calculatedPages, config.api.maxPages);
+        
+        console.log(`API Response: result_size=${resultSize}, page_count=${apiPageCount}, per_page=${perPage}, current_page_items=${currentPageItems}, calculated_pages=${calculatedPages}`);
+        
+        // If this page has fewer items than per_page, we've reached the end
+        if (currentPageItems < perPage && currentPageItems > 0) {
+          console.log(`Last page detected: got ${currentPageItems} items, expected ${perPage}`);
+          break;
+        }
+        
         currentPage++;
 
         // Add delay between requests to be respectful
@@ -59,9 +76,9 @@ export class SrealityApiClient {
           await this.delay(config.api.requestDelay);
         }
 
-      } while (currentPage <= totalPages);
+      } while (currentPage <= totalPages && allEstates.length < (config.api.maxPages * config.api.perPage));
 
-      console.log(`Fetched ${allEstates.length} estates from ${totalPages} pages`);
+      console.log(`Fetched ${allEstates.length} estates from ${currentPage - 1} pages`);
       return allEstates;
 
     } catch (error) {
