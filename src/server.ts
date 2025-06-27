@@ -262,6 +262,11 @@ export class ApiServer {
       res.json({ success: true, data: stats });
     }));
 
+    this.app.get('/api/stats/stale', asyncHandler(async (req, res, next) => {
+      const staleStats = await this.dbService.getEstatesNotSeenStats();
+      res.json({ success: true, data: staleStats });
+    }));
+
     // Sreality Proxy
     this.app.get('/api/sreality/proxy', asyncHandler(async (req, res, next) => {
       const response = await this.syncService.proxySrealityApi(req.query);

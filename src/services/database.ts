@@ -119,11 +119,18 @@ export class DatabaseService {
   }
 
   async markInactiveEstates(activeSrealityIds: bigint[]): Promise<number> {
+    // Only mark estates as inactive if they haven't been seen for 6 months
+    const sixMonthsAgo = new Date();
+    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+
     const result = await this.prisma.estate.updateMany({
       where: {
         isActive: true,
         srealityId: {
           notIn: activeSrealityIds,
+        },
+        lastSeen: {
+          lt: sixMonthsAgo, // Only mark inactive if last seen more than 6 months ago
         },
       },
       data: {
@@ -131,6 +138,7 @@ export class DatabaseService {
       },
     });
 
+    console.log(`Marked ${result.count} estates as inactive (not seen for 6+ months)`);
     return result.count;
   }
 
@@ -397,6 +405,52 @@ export class DatabaseService {
       activeEstates,
       inactiveEstates,
       lastSyncAt: lastSync?.completedAt || null,
+    };
+  }
+
+  async getEstatesNotSeenStats(): Promise<{
+    notSeenIn1Month: number;
+    notSeenIn3Months: number;
+    notSeenIn6Months: number;
+    candidatesForInactive: number;
+  }> {
+    const now = new Date();
+    const oneMonthAgo = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
+    const threeMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 3, now.getDate());
+    const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 6, now.getDate());
+
+    const [notSeenIn1Month, notSeenIn3Months, notSeenIn6Months, candidatesForInactive] = await Promise.all([
+      this.prisma.estate.count({
+        where: {
+          isActive: true,
+          lastSeen: { lt: oneMonthAgo },
+        },
+      }),
+      this.prisma.estate.count({
+        where: {
+          isActive: true,
+          lastSeen: { lt: threeMonthsAgo },
+        },
+      }),
+      this.prisma.estate.count({
+        where: {
+          isActive: true,
+          lastSeen: { lt: sixMonthsAgo },
+        },
+      }),
+      this.prisma.estate.count({
+        where: {
+          isActive: true,
+          lastSeen: { lt: sixMonthsAgo },
+        },
+      }),
+    ]);
+
+    return {
+      notSeenIn1Month,
+      notSeenIn3Months,
+      notSeenIn6Months,
+      candidatesForInactive,
     };
   }
 }
