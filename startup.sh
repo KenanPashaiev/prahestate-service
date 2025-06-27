@@ -17,7 +17,11 @@ else
 fi
 
 echo "📦 Installing dependencies..."
-npm ci
+npm install --include=dev
+echo "📦 Dependencies installed successfully"
+
+echo "🔧 Generating Prisma client..."
+npm run db:generate
 
 echo "🏗️ Building application..."
 npm run build
